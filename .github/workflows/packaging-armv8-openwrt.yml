@@ -100,12 +100,12 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        docker rmi $(docker images -q)
+        (docker rmi $(docker images -q)
         sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android $AGENT_TOOLSDIRECTORY
         sudo -E apt-get -y update
         sudo -E apt-get -y install rename $(curl -fsSL is.gd/depends_ubuntu_2204)
         sudo -E apt-get -y autoremove --purge
-        sudo -E apt-get -y clean
+        sudo -E apt-get -y clean) &
         sudo timedatectl set-timezone "$TZ"
 
     - name: Clone Source Code
@@ -127,7 +127,7 @@ jobs:
       run: |
         cp $CONFIG_FILE $OPENWRT_PATH/.config
         cd $OPENWRT_PATH
-        make defconfig > /dev/null 2>&1
+        make defconfig >/dev/null 2>&1
         SOURCE_REPO=$(echo $REPO_URL | awk -F '/' '{print $(NF)}')
         echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
         DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
@@ -135,7 +135,7 @@ jobs:
         DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
         echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
         KERNEL=$(grep -oP 'KERNEL_PATCHVER:=\K[^ ]+' target/linux/$DEVICE_TARGET/Makefile)
-        KERNEL_VERSION=$(sed -n 2p include/kernel-$KERNEL | awk -F '-' '{print $2}' | awk -F ' ' '{print $1}')
+        KERNEL_VERSION=$(sed -n 2p include/kernel-$KERNEL | awk '{print $1}' | awk -F '-' '{print $2}')
         echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
 
     - name: Download OpenWrt Firmware
@@ -144,10 +144,7 @@ jobs:
         FIRMWARE_PATH=openwrt/bin/targets/armvirt/64
         [ -d $FIRMWARE_PATH ] || mkdir -p $FIRMWARE_PATH
         cd $FIRMWARE_PATH
-        wget -q $(curl -s "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | grep "$RELEASE_TAG.*rootfs.tar.gz" | awk -F '"' '{print $4}')
-        wget -q https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/build.config
-        wget -q https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/config.buildinfo
-        wget -q https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/packages.tar.gz
+        wget -q $(curl -sL api.github.com/repos/$GITHUB_REPOSITORY/releases | grep $RELEASE_TAG/ | awk -F '"' '{print $4}' | grep -v img.gz)
         echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
         echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
 
