@@ -138,9 +138,7 @@ destination_dir="package/A"
 color cy "添加&替换插件"
 # 添加额外插件
 git_clone https://github.com/kongfl888/luci-app-adguardhome
-clone_dir https://github.com/esirplayground/luci-app-poweroff luci-app-poweroff
 clone_all https://github.com/destan19/OpenAppFilter
-clone_dir https://github.com/Jason6111/luci-app-netdata luci-app-netdata
 
 # 科学上网插件
 clone_all https://github.com/fw876/helloworld

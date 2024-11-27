@@ -138,9 +138,7 @@ destination_dir="package/A"
 color cy "添加&替换插件"
 # 添加额外插件
 clone_dir openwrt-23.05 https://github.com/coolsnowwolf/luci luci-app-adguardhome
-clone_all https://github.com/esirplayground/luci-app-poweroff
 clone_all https://github.com/destan19/OpenAppFilter
-clone_all https://github.com/Jason6111/luci-app-netdata
 
 # 科学上网插件
 clone_all https://github.com/fw876/helloworld
