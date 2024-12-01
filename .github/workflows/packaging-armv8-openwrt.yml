@@ -3,9 +3,16 @@ name: packaging armv8 openwrt
 on:
   workflow_dispatch:
     inputs:
+      source_repo:
+        description: "选择要打包的LUCI版本"
+        required: true
+        default: "18.06"
+        type: choice
+        options: [18.06, 23.05]
+
       script_repo:
         description: "选择打包脚本储存库"
-        required: false
+        required: true
         default: "flippy"
         type: choice
         options: [flippy, ophub]
@@ -16,7 +23,7 @@ on:
         default: "s905d_s905x3"
 
       customize_rk3399:
-        description: "设置 rk3399 设备(设备型号:dtb名称)"
+        description: "设置rk3399设备(设备型号:dtb名称)"
         required: false
         default: ""
 
@@ -41,11 +48,6 @@ on:
         type: choice
         options: [flippy, stable]
 
-      builder_name:
-        description: "设置固件构建者签名"
-        required: false
-        default: "flippy"
-
       auto_kernel:
         description: "自动使用最新内核"
         required: false
@@ -53,31 +55,31 @@ on:
         type: boolean
 
       upload_artifact:
-        description: "上传固件到 Artifact"
+        description: "上传固件到Artifact"
         required: false
         default: false
         type: boolean
 
       upload_release:
-        description: "上传固件到 Releases"
+        description: "上传固件到Releases"
         required: false
         default: true
         type: boolean
 
 jobs:
-  package:
+  packaging:
     runs-on: ubuntu-22.04
     if: github.event.repository.owner.id == github.event.sender.id || ! github.event.sender.id
-    name: packaging ${{ matrix.target }} ${{ matrix.branch }}
-    strategy:
-      fail-fast: false
-      matrix:
-        target: [armv8]
-        branch: [18.06, 23.05]
+    name: packaging armv8 ${{ github.event.inputs.source_repo }}
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        target: [armv8]
+#        branch: [18.06, 23.05]
 
     env:
-      CONFIG_FILE: configs/${{ matrix.target }}.config
-      RELEASE_TAG: ${{ matrix.target }}-${{ matrix.branch }}
+      CONFIG_FILE: configs/armv8-${{ github.event.inputs.source_repo }}.config
+      RELEASE_TAG: armv8-${{ github.event.inputs.source_repo }}
       TZ: Asia/Shanghai
 
     steps:
@@ -86,14 +88,12 @@ jobs:
 
     - name: Set Compile Source Code
       run: |
-        if [ ${{ matrix.branch }} == '18.06' ]; then
-          echo "REPO_URL=https://github.com/coolsnowwolf/lede" >> $GITHUB_ENV
-          echo "REPO_BRANCH=master" >> $GITHUB_ENV
-          echo -e "CONFIG_TARGET_armvirt=y\nCONFIG_TARGET_armvirt_64=y" > $CONFIG_FILE
-        elif [ ${{ matrix.branch }} == '23.05' ]; then
-          echo "REPO_URL=https://github.com/immortalwrt/immortalwrt" >> $GITHUB_ENV
-          echo "REPO_BRANCH=openwrt-23.05" >> $GITHUB_ENV
-          echo -e "CONFIG_TARGET_armsr=y\nCONFIG_TARGET_armsr_armv8=y" > $CONFIG_FILE
+        if [ ${{ github.event.inputs.source_repo }} == '18.06' ]; then
+          echo "REPO_URL=https://github.com/coolsnowwolf/lede" >>$GITHUB_ENV
+          echo "REPO_BRANCH=master" >>$GITHUB_ENV
+        elif [ ${{ github.event.inputs.source_repo }} == '23.05' ]; then
+          echo "REPO_URL=https://github.com/immortalwrt/immortalwrt" >>$GITHUB_ENV
+          echo "REPO_BRANCH=openwrt-23.05" >>$GITHUB_ENV
         fi
 
     - name: Initialization Environment
@@ -113,15 +113,15 @@ jobs:
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         cd openwrt
-        echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
+        echo "OPENWRT_PATH=$PWD" >>$GITHUB_ENV
         COMMIT_AUTHOR=$(git show -s --date=short --format="作者: %an")
-        echo "COMMIT_AUTHOR=$COMMIT_AUTHOR" >> $GITHUB_ENV
+        echo "COMMIT_AUTHOR=$COMMIT_AUTHOR" >>$GITHUB_ENV
         COMMIT_DATE=$(git show -s --date=short --format="时间: %ci")
-        echo "COMMIT_DATE=$COMMIT_DATE" >> $GITHUB_ENV
+        echo "COMMIT_DATE=$COMMIT_DATE" >>$GITHUB_ENV
         COMMIT_MESSAGE=$(git show -s --date=short --format="内容: %s")
-        echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >> $GITHUB_ENV
+        echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >>$GITHUB_ENV
         COMMIT_HASH=$(git show -s --date=short --format="hash: %H")
-        echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+        echo "COMMIT_HASH=$COMMIT_HASH" >>$GITHUB_ENV
 
     - name: Generate Variables
       run: |
@@ -129,14 +129,14 @@ jobs:
         cd $OPENWRT_PATH
         make defconfig >/dev/null 2>&1
         SOURCE_REPO=$(echo $REPO_URL | awk -F '/' '{print $(NF)}')
-        echo "SOURCE_REPO=$SOURCE_REPO" >> $GITHUB_ENV
-        DEVICE_TARGET=$(cat .config | grep CONFIG_TARGET_BOARD | awk -F '"' '{print $2}')
-        echo "DEVICE_TARGET=$DEVICE_TARGET" >> $GITHUB_ENV
-        DEVICE_SUBTARGET=$(cat .config | grep CONFIG_TARGET_SUBTARGET | awk -F '"' '{print $2}')
-        echo "DEVICE_SUBTARGET=$DEVICE_SUBTARGET" >> $GITHUB_ENV
-        KERNEL=$(grep -oP 'KERNEL_PATCHVER:=\K[^ ]+' target/linux/$DEVICE_TARGET/Makefile)
+        echo "SOURCE_REPO=$SOURCE_REPO" >>$GITHUB_ENV
+        TARGET_NAME=$(awk -F '"' '/CONFIG_TARGET_BOARD/{print $2}' .config)
+        SUBTARGET_NAME=$(awk -F '"' '/CONFIG_TARGET_SUBTARGET/{print $2}' .config)
+        DEVICE_TARGET=$TARGET_NAME-$SUBTARGET_NAME
+        echo "DEVICE_TARGET=$DEVICE_TARGET" >>$GITHUB_ENV
+        KERNEL=$(grep -oP 'KERNEL_PATCHVER:=\K[^ ]+' target/linux/$TARGET_NAME/Makefile)
         KERNEL_VERSION=$(sed -n 2p include/kernel-$KERNEL | awk '{print $1}' | awk -F '-' '{print $2}')
-        echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
+        echo "KERNEL_VERSION=$KERNEL_VERSION" >>$GITHUB_ENV
 
     - name: Download OpenWrt Firmware
       id: download
@@ -145,8 +145,10 @@ jobs:
         [ -d $FIRMWARE_PATH ] || mkdir -p $FIRMWARE_PATH
         cd $FIRMWARE_PATH
         wget -q $(curl -sL api.github.com/repos/$GITHUB_REPOSITORY/releases | grep $RELEASE_TAG/ | awk -F '"' '{print $4}' | grep -v img.gz)
-        echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
+        DEFAULT_IP=$(curl -sL api.github.com/repos/$GITHUB_REPOSITORY/releases | grep $DEVICE_TARGET.*$SOURCE_REPO.*$REPO_BRANCH | grep -oP '默认地址: \K\d+\.\d+\.\d+\.\d+')
+        echo "DEFAULT_IP=$DEFAULT_IP" >>$GITHUB_ENV
+        echo "FIRMWARE_PATH=$PWD" >>$GITHUB_ENV
+        echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >>$GITHUB_ENV
 
     - name: Use Flippy Script Packaging
       if: steps.download.conclusion == 'success' && github.event.inputs.script_repo == 'flippy'
@@ -158,8 +160,8 @@ jobs:
         PACKAGE_SOC: ${{ github.event.inputs.openwrt_board }}
         KERNEL_VERSION_NAME: ${{ github.event.inputs.openwrt_kernel }}
         KERNEL_AUTO_LATEST: ${{ github.event.inputs.auto_kernel }}
-        WHOAMI: ${{ github.event.inputs.builder_name }}
         CUSTOMIZE_RK3399: ${{ github.event.inputs.customize_rk3399 }}
+        WHOAMI: flippy
 
     - name: Use Ophub Script Packaging
       if: steps.download.conclusion == 'success' && github.event.inputs.script_repo == 'ophub'
@@ -171,7 +173,7 @@ jobs:
         auto_kernel: ${{ github.event.inputs.auto_kernel }}
         kernel_repo: ${{ github.event.inputs.kernel_repo }}
         kernel_usage: ${{ github.event.inputs.kernel_usage }}
-        builder_name: ${{ github.event.inputs.builder_name }}
+        builder_name: flippy
 
     - name: Organize Files
       if: env.PACKAGED_STATUS == 'success'
@@ -192,20 +194,20 @@ jobs:
       if: env.PACKAGED_STATUS == 'success' && github.event.inputs.upload_release == 'true'
       uses: ncipollo/release-action@main
       with:
-        name: ${{ env.DATE }} for ${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
+        name: ${{ env.DATE }} for ${{ env.DEVICE_TARGET }}
         allowUpdates: true
         removeArtifacts: true
         tag: ${{ env.RELEASE_TAG }}
         token: ${{ secrets.GITHUB_TOKEN }}
         artifacts: ${{ env.FIRMWARE_PATH }}/*,${{ env.PACKAGED_OUTPUTPATH }}/*
         body: |
-          **This is OpenWrt Firmware for ${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}**
+          **This is ${{ env.SOURCE_REPO }} firmware for ${{ env.DEVICE_TARGET }}**
           ### 📒 固件信息
-          - 💻 平台架构: ${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}
+          - 💻 平台架构: ${{ env.DEVICE_TARGET }}
           - ⚽ 固件源码: ${{ env.REPO_URL }}
           - 💝 源码分支: ${{ env.REPO_BRANCH }}
           - 🚀 内核版本: ${{ env.KERNEL_VERSION }}
-          - 🌐 默认地址: 192.168.1.2
+          - 🌐 默认地址: ${{ env.DEFAULT_IP }}
           - 🔑 默认密码: password
           ### 🧊 固件版本
           - 固件编译前最后一次➦[主源码](${{ env.REPO_URL }})更新记录
