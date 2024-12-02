@@ -246,7 +246,6 @@ jobs:
         body: |
           **This is ${{ env.SOURCE_REPO }} firmware for ${{ env.DEVICE_TARGET }}**
           ### 📒 固件信息
-          - 🚀 x86-64 精简版，主打科学上网适合养老
           - 💻 平台架构: ${{ env.DEVICE_TARGET }}
           - ⚽ 固件源码: ${{ env.REPO_URL }}
           - 💝 源码分支: ${{ env.REPO_BRANCH }}
