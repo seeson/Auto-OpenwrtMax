@@ -136,6 +136,10 @@ destination_dir="package/A"
 [[ -d "$destination_dir" ]] || mkdir -p $destination_dir
 
 color cy "添加&替换插件"
+
+# 添加 Rust 依赖
+git_clone https://github.com/openwrt/packages lang/rust
+
 # 添加额外插件
 clone_dir openwrt-23.05 https://github.com/coolsnowwolf/luci luci-app-adguardhome
 clone_all https://github.com/destan19/OpenAppFilter
