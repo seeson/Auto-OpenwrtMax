@@ -146,6 +146,7 @@ clone_all https://github.com/xiaorouji/openwrt-passwall-packages
 clone_all https://github.com/xiaorouji/openwrt-passwall
 clone_all https://github.com/xiaorouji/openwrt-passwall2
 clone_dir https://github.com/vernesong/OpenClash luci-app-openclash
+clone_dir https://github.com/sbwml/openwrt_helloworld shadowsocks-rust
 
 # Themes
 git_clone https://github.com/kiddin9/luci-theme-edge
@@ -161,8 +162,9 @@ sed -i "s|ARMv8|$RELEASE_TAG|g" $destination_dir/luci-app-amlogic/root/etc/confi
 # HomeProxy
 git_clone https://github.com/immortalwrt/homeproxy luci-app-homeproxy
 
-# Mihomo
-clone_all https://github.com/morytyann/OpenWrt-mihomo
+# Nikki
+clone_all https://github.com/nikkinikki-org/OpenWrt-nikki
+clone_all https://github.com/QiuSimons/luci-app-daed PIC
 
 # MosDNS
 clone_all https://github.com/sbwml/luci-app-mosdns
